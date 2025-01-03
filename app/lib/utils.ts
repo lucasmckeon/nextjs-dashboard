@@ -9,7 +9,7 @@ export const formatCurrency = (amount: number) => {
 
 export const formatDateToLocal = (
   dateStr: string,
-  locale: string = 'en-US',
+  locale: string = 'en-US'
 ) => {
   const date = new Date(dateStr);
   const options: Intl.DateTimeFormatOptions = {
@@ -67,3 +67,12 @@ export const generatePagination = (currentPage: number, totalPages: number) => {
     totalPages,
   ];
 };
+
+export function isEmpty<T extends object>(obj: T | null | undefined): boolean {
+  if (obj === null || obj === undefined) {
+    return true;
+  }
+
+  // For objects, check if they have any own enumerable properties
+  return Object.keys(obj).length === 0;
+}
