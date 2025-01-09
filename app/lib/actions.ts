@@ -100,8 +100,19 @@ export async function authenticate(
   prevState: string | undefined,
   formData: FormData
 ) {
+  const email = formData.get('email');
+  const password = formData.get('password');
+
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return 'Invalid form data.';
+  }
   try {
-    await signIn('credentials', formData);
+    await signIn('credentials', {
+      redirect: true,
+      redirectTo: '/dashboard',
+      email,
+      password,
+    });
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {

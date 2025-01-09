@@ -1,10 +1,15 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { authConfig } from './auth.config';
 import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import type { User } from '@/app/lib/definitions';
 import bcrypt from 'bcrypt';
+import { v4 as uuid } from 'uuid';
+import {
+  encode as defaultEncode,
+  decode as defaultDecode,
+} from 'next-auth/jwt';
+import { myAdapter } from './myAdapter';
 
 async function getUser(email: string): Promise<User | undefined> {
   try {
@@ -16,10 +21,21 @@ async function getUser(email: string): Promise<User | undefined> {
   }
 }
 
-export const { auth, signIn, signOut } = NextAuth({
-  ...authConfig,
+async function userExists(userId: string) {
+  const { rows } = await sql`
+    SELECT 1 FROM users WHERE id = ${userId} LIMIT 1;
+  `;
+  return rows.length > 0;
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: myAdapter,
   providers: [
     Credentials({
+      credentials: {
+        email: {},
+        password: {},
+      },
       async authorize(credentials) {
         const parsedCredentials = z
           .object({ email: z.string().email(), password: z.string().min(6) })
@@ -39,4 +55,71 @@ export const { auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user, account }) {
+      if (account?.provider === 'credentials' && user) {
+        token.credentials = true;
+        token.sub = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // If we want the user ID in session:
+      if (token?.sub) {
+        session.user.id = token.sub;
+      }
+      const user = {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+      };
+      const sanitizedSession = {
+        user,
+        expires: session.expires,
+      };
+      console.log('Sanitized Session from callbacks.session:', session);
+      //Ensure we don't return the password
+      return sanitizedSession;
+    },
+  },
+  jwt: {
+    encode: async function (params) {
+      if (params.token?.credentials) {
+        const sessionToken = uuid();
+
+        if (!params.token.sub) {
+          throw new Error('No user ID found in token');
+        }
+
+        await myAdapter?.createSession?.({
+          sessionToken: sessionToken,
+          userId: params.token.sub,
+          expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        });
+        return sessionToken;
+      }
+      return defaultEncode(params);
+    },
+    async decode(params) {
+      try {
+        // Attempt to decode as normal JWT
+        return await defaultDecode(params);
+      } catch (err) {
+        // If decode fails, maybe it's the random token from DB
+        const sessionToken = params.token ?? '';
+        const result = await myAdapter?.getSessionAndUser?.(sessionToken);
+        if (!result) return null;
+
+        const { session, user } = result;
+        // Return an object with at least `sub` so NextAuth recognizes the user
+        return {
+          sub: user.id,
+          name: user.name,
+          email: user.email,
+        };
+      }
+    },
+  },
+  secret: process.env.AUTH_SECRET!,
+  experimental: { enableWebAuthn: true },
 });
