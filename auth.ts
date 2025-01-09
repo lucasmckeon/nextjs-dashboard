@@ -77,7 +77,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         user,
         expires: session.expires,
       };
-      console.log('Sanitized Session from callbacks.session:', session);
+      console.log(
+        'Sanitized Session from callbacks.session:',
+        sanitizedSession
+      );
       //Ensure we don't return the password
       return sanitizedSession;
     },

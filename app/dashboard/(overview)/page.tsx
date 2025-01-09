@@ -3,12 +3,12 @@ import RevenueChart from '@/app/ui/dashboard/revenue-chart';
 import LatestInvoices from '@/app/ui/dashboard/latest-invoices';
 import { lusitana } from '@/app/ui/fonts';
 import { Suspense } from 'react';
-import { auth } from '@/auth';
 import {
   CardSkeleton,
   LatestInvoicesSkeleton,
   RevenueChartSkeleton,
 } from '@/app/ui/skeletons';
+import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 export default async function Page() {
   const session = await auth();
