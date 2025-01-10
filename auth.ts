@@ -94,16 +94,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error('No user ID found in token');
         }
 
+        //TODO Support multiple logins by binding sessions to IP address or some unique fingerprint
+
         await myAdapter?.createSession?.({
           sessionToken: sessionToken,
           userId: params.token.sub,
-          expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          //Any value but 30 causes an error
+          expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         });
         return sessionToken;
       }
       return defaultEncode(params);
     },
+    //Never called as I believe auth.js does this check itself,
+    //keeping here to signal what auth.js does by default
     async decode(params) {
+      console.log('DECODE FUNCTION CALLED');
       try {
         // Attempt to decode as normal JWT
         return await defaultDecode(params);
@@ -125,4 +131,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   secret: process.env.AUTH_SECRET!,
   experimental: { enableWebAuthn: true },
+  debug: true,
 });

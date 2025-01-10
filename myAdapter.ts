@@ -102,6 +102,7 @@ export const myAdapter: Adapter = {
   //   }
   // }
 
+  //TODO implement with transactions
   async createSession({ sessionToken, userId, expires }) {
     await sql`
       INSERT INTO sessions (session_token, user_id, expires)
