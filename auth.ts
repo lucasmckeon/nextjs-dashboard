@@ -100,7 +100,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           sessionToken: sessionToken,
           userId: params.token.sub,
           //Any value but 30 causes an error
-          expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
         });
         return sessionToken;
       }

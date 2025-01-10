@@ -141,8 +141,12 @@ export const myAdapter: Adapter = {
   },
 
   async updateSession({ sessionToken, userId, expires }) {
-    if (!sessionToken || !userId || !expires)
-      throw Error('Failed update session');
+    console.log('UPDATE SESSION');
+    if (!sessionToken || !userId || !expires) {
+      console.warn('UPDATE SESSION NOT RUN');
+      //Return instead of throwing an error to support expire times besides default 30 days
+      return;
+    }
     const result = await sql`
       UPDATE sessions
       SET 
