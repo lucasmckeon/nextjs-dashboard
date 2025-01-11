@@ -2,7 +2,7 @@
 import { type Adapter } from 'next-auth/adapters';
 import { sql } from '@vercel/postgres';
 import { randomUUID } from 'crypto';
-import type { AdapterUser } from 'next-auth/adapters';
+import type { AdapterUser, VerificationToken } from 'next-auth/adapters';
 //import { AdapterUser } from 'next-auth/adapters';
 
 export const myAdapter: Adapter = {
@@ -12,8 +12,9 @@ export const myAdapter: Adapter = {
     // (Assumes you have columns: id, email, name, image, email_verified, etc.)
     const id = randomUUID();
     await sql`
-      INSERT INTO users (id, email, name, image, email_verified)
-      VALUES (${id}, ${user.email}, ${user.name}, ${user.image}, ${user.emailVerified})
+      INSERT INTO users (id, email, name,  email_verified)
+      VALUES (${id}, ${user.email}, ${user.name ?? null}, 
+        ${user.emailVerified?.toISOString()})
     `;
     // Return the user data with the newly created `id`
     return { ...user, id };
@@ -23,7 +24,7 @@ export const myAdapter: Adapter = {
     const { rows } = await sql`
       SELECT * FROM users WHERE id=${id} LIMIT 1
     `;
-    if (!rows?.length) return null;
+    if (!rows.length) return null;
     return rows[0] as AdapterUser;
   },
 
@@ -31,7 +32,12 @@ export const myAdapter: Adapter = {
     const { rows } = await sql`
       SELECT * FROM users WHERE email=${email} LIMIT 1
     `;
-    if (!rows?.length) return null;
+    if (!rows.length) {
+      return null;
+      // await sql`
+      //   INSERT INTO users (name,email,)
+      // `;
+    }
     return rows[0] as AdapterUser;
   },
 
@@ -118,7 +124,7 @@ export const myAdapter: Adapter = {
       WHERE session_token=${sessionToken}
       LIMIT 1
     `;
-    if (!sessionResult.rows?.length) return null;
+    if (!sessionResult.rows.length) return null;
 
     // Re-map to NextAuth’s expected shape
     const session = {
@@ -133,7 +139,7 @@ export const myAdapter: Adapter = {
       WHERE id=${session.userId}
       LIMIT 1
     `;
-    if (!userResult.rows?.length) return null;
+    if (!userResult.rows.length) return null;
 
     const user = userResult.rows[0] as AdapterUser;
 
@@ -155,7 +161,7 @@ export const myAdapter: Adapter = {
       WHERE session_token=${sessionToken}
       RETURNING session_token, user_id, expires
     `;
-    if (!result.rows?.length) return null;
+    if (!result.rows.length) return null;
     return {
       sessionToken,
       userId,
@@ -169,13 +175,50 @@ export const myAdapter: Adapter = {
     `;
   },
 
-  // -- 3) OPTIONAL: Email verification flows -----------------------
-  async createVerificationToken(verificationToken) {
+  //TODO modify the expires to be shorter
+  async createVerificationToken({ identifier, token, expires }) {
     // Only needed if using email provider (passwordless, magic link)
-    return null as any;
+    console.log(
+      `createVerificationToken identifier: ${identifier} token: ${token} expires: ${expires}`
+    );
+    //TODO is try catch needed for all of these adapter methods?
+    try {
+      await sql`
+        INSERT INTO verification_token (identifier, token, expires)
+        VALUES (${identifier}, ${token}, ${expires.toISOString()})
+      `;
+      return { identifier, token, expires };
+    } catch (error) {
+      console.error('Error creating verification token:', error);
+      throw new Error('Failed to create verification token.');
+    }
   },
   async useVerificationToken({ identifier, token }) {
     // Only needed if using email provider
-    return null;
+    console.log(`useVerificationToken id: ${identifier} and token: ${token}`);
+    try {
+      const { rows } = await sql`
+        SELECT * FROM verification_token WHERE identifier=${identifier} AND 
+        token=${token} AND expires > NOW() LIMIT 1
+      `;
+      if (rows.length === 0) {
+        console.warn('No valid verification token found.');
+        return null;
+      }
+
+      const verificationToken = rows[0] as VerificationToken;
+      const result = await sql`
+        DELETE FROM verification_token 
+        WHERE identifier=${identifier} AND token=${token}
+      `;
+      //TODO what should I do if delete fails?
+      if (result.rowCount != 1) {
+        console.warn('Delete verification token failed');
+      }
+      return verificationToken;
+    } catch (error) {
+      console.error('Error using verification token:', error);
+      throw new Error('Failed to use verification token.');
+    }
   },
 };

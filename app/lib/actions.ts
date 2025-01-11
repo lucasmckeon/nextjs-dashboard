@@ -125,3 +125,30 @@ export async function authenticate(
     throw error;
   }
 }
+export async function magicLink(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const email = formData.get('email');
+
+  if (typeof email !== 'string') {
+    return 'Invalid form data.';
+  }
+  try {
+    await signIn('email', {
+      redirect: true,
+      redirectTo: '/dashboard',
+      email,
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+        default:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
+}

@@ -1,28 +1,20 @@
+//https://chatgpt.com/g/g-p-67689b8838f48191aa1eb0a51dde9c47-nextjs-tutorial/c/678199cf-b07c-8012-a88a-7b982ede70b4
+
 import { db } from '@vercel/postgres';
-
+import { GET as first } from './route_01_09_initial_seed';
+import { GET as second } from './route_01_10_create_sessions_table';
+import { GET as third } from './route_01_11_001_create_verification_token_table';
 const client = await db.connect();
-
-async function createSessionsTable() {
-  await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
-  await client.sql`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      session_token VARCHAR(255) UNIQUE NOT NULL,
-      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-      expires TIMESTAMP WITH TIME ZONE NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-}
 
 export async function GET() {
   try {
     await client.sql`BEGIN`;
-    await createSessionsTable();
+    await first();
+    await second();
+    await third();
     await client.sql`COMMIT`;
 
-    return Response.json({ message: 'Database seeded successfully' });
+    return Response.json({ message: 'Users table created successfully' });
   } catch (error) {
     await client.sql`ROLLBACK`;
     return Response.json({ error }, { status: 500 });
