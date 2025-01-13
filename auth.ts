@@ -75,7 +75,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const urlObj = new URL(url);
           const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
-
           await transporter.sendMail({
             to: email,
             from: provider.from, // or process.env.EMAIL_FROM
@@ -95,6 +94,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   ],
   callbacks: {
+    async signIn({ user, account, email }) {
+      console.log('signIn callback invoked. All props:', {
+        user,
+        account,
+        email,
+      });
+      // Only handle the email provider flow.
+      if (account?.provider === 'email') {
+        // If it's the "requesting magic link" stage:
+        if (email?.verificationRequest === true) {
+          const userForEmail = await myAdapter?.getUserByEmail?.(user.email!);
+          if (!userForEmail) {
+            console.log(
+              'auth.ts signIn: cannot sign in with magic link without an email'
+            );
+            return false;
+          }
+        }
+      }
+      // For credentials or other providers, or for the second invocation, allow sign in
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (account?.provider === 'credentials' && user) {
         token.credentials = true;

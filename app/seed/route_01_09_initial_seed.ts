@@ -12,7 +12,7 @@ async function seedUsers() {
       name VARCHAR(255),
       email TEXT NOT NULL UNIQUE,
       image TEXT,
-      email_verified TIMESTAMP WITH TIME ZONE,
+      email_verified boolean,
       password TEXT 
     );
   `;

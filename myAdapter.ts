@@ -46,15 +46,14 @@ export const myAdapter: Adapter = {
     return null;
   },
 
+  //Only used for updating email_verified during magic link sign in for now
   async updateUser(user) {
     // Update user in DB if needed
-    if (!user.id) throw new Error('Cannot update user without an ID');
+    if (!user.id || !user.emailVerified)
+      throw new Error('Cannot update user without an ID');
     await sql`
       UPDATE users
       SET
-        email = ${user.email},
-        name = ${user.name},
-        image = ${user.image},
         email_verified = ${user.emailVerified !== null}
       WHERE id = ${user.id}
     `;
