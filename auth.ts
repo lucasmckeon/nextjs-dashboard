@@ -39,19 +39,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
+          .object({
+            email: z.string().email(),
+            password: z.string().min(6),
+            isSignUp: z.boolean().default(false),
+          })
           .safeParse(credentials);
 
         if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data;
-          const user = await getUser(email);
-          if (!user) return null;
+          const { email, password, isSignUp } = parsedCredentials.data;
+          let user = await getUser(email);
+          if (!user && !isSignUp) {
+            console.log('Sign in failed: No user for email');
+            return null;
+          }
+          if (user && isSignUp) {
+            console.log('Sign up failed: User already exists');
+            return null;
+          }
+          let inserted;
+          if (!user && isSignUp) {
+            //Insert into database
+            try {
+              const hashedPassword = await bcrypt.hash(password, 10);
+              inserted = await sql<User>`
+                INSERT INTO users (email, password)
+                VALUES (${email}, ${hashedPassword})
+                RETURNING *
+              `;
+            } catch (error) {
+              console.error('Error creating new user during sign up:', error);
+              return null;
+            }
+            user = inserted.rows[0];
+            console.log(`New user created during sign up ${user?.id}`);
+          }
+          if (!user) {
+            throw new Error(
+              'Something is wrong in auth.ts credentials authorize'
+            );
+          }
           const passwordsMatch = await bcrypt.compare(password, user.password);
-
           if (passwordsMatch) return user;
         }
 
-        console.log('Invalid credentials');
+        console.log('Invalid credentials format');
         return null;
       },
     }),

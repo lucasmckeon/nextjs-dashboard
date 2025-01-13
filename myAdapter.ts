@@ -9,12 +9,11 @@ export const myAdapter: Adapter = {
   // -- 1) USER methods --------------------------------------------
   async createUser(user) {
     // Insert a user row in your `users` table
-    // (Assumes you have columns: id, email, name, image, email_verified, etc.)
     const id = randomUUID();
     await sql`
-      INSERT INTO users (id, email, name,  email_verified)
+      INSERT INTO users (id, email, name, image, email_verified)
       VALUES (${id}, ${user.email}, ${user.name ?? null}, 
-        ${user.emailVerified?.toISOString()})
+      ${user.image ?? null}, ${user.emailVerified?.toISOString() ?? null})
     `;
     // Return the user data with the newly created `id`
     return { ...user, id };

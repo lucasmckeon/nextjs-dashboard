@@ -125,6 +125,36 @@ export async function authenticate(
     throw error;
   }
 }
+export async function signUp(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const email = formData.get('email');
+  const password = formData.get('password');
+  const isSignUp = true;
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return 'Invalid form data.';
+  }
+  try {
+    await signIn('credentials', {
+      redirect: true,
+      redirectTo: '/dashboard',
+      email,
+      password,
+      isSignUp,
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+        default:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
+}
 export async function magicLink(
   prevState: string | undefined,
   formData: FormData
