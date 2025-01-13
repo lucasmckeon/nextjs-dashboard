@@ -1,16 +1,16 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { z } from 'zod';
 import { sql } from '@vercel/postgres';
 import type { User } from '@/app/lib/definitions';
 import bcrypt from 'bcrypt';
-import { v4 as uuid } from 'uuid';
 import {
   encode as defaultEncode,
   decode as defaultDecode,
 } from 'next-auth/jwt';
 import { myAdapter } from './myAdapter';
 import transporter from './app/lib/auth/mailer';
+import { SignInCredentialsSchema } from './app/lib/schemas';
+import { randomUUID } from 'crypto';
 
 async function getUser(email: string): Promise<User | undefined> {
   try {
@@ -38,46 +38,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: {},
       },
       async authorize(credentials) {
-        const parsedCredentials = z
-          .object({
-            email: z.string().email(),
-            password: z.string().min(6),
-            isSignUp: z.boolean().default(false),
-          })
-          .safeParse(credentials);
+        const parsedCredentials =
+          SignInCredentialsSchema.safeParse(credentials);
 
         if (parsedCredentials.success) {
-          const { email, password, isSignUp } = parsedCredentials.data;
+          const { email, password } = parsedCredentials.data;
           let user = await getUser(email);
-          if (!user && !isSignUp) {
-            console.log('Sign in failed: No user for email');
-            return null;
-          }
-          if (user && isSignUp) {
-            console.log('Sign up failed: User already exists');
-            return null;
-          }
-          let inserted;
-          if (!user && isSignUp) {
-            //Insert into database
-            try {
-              const hashedPassword = await bcrypt.hash(password, 10);
-              inserted = await sql<User>`
-                INSERT INTO users (email, password)
-                VALUES (${email}, ${hashedPassword})
-                RETURNING *
-              `;
-            } catch (error) {
-              console.error('Error creating new user during sign up:', error);
-              return null;
-            }
-            user = inserted.rows[0];
-            console.log(`New user created during sign up ${user?.id}`);
-          }
           if (!user) {
-            throw new Error(
-              'Something is wrong in auth.ts credentials authorize'
+            console.log(
+              `Sign in failed: No user associated with email ${email}`
             );
+            return null;
           }
           const passwordsMatch = await bcrypt.compare(password, user.password);
           if (passwordsMatch) return user;
@@ -156,7 +127,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   jwt: {
     encode: async function (params) {
       if (params.token?.credentials) {
-        const sessionToken = uuid();
+        const sessionToken = randomUUID();
 
         if (!params.token.sub) {
           throw new Error('No user ID found in token');

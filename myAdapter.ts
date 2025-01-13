@@ -2,11 +2,11 @@
 import { type Adapter } from 'next-auth/adapters';
 import { sql } from '@vercel/postgres';
 import { randomUUID } from 'crypto';
+
 import type { AdapterUser, VerificationToken } from 'next-auth/adapters';
-//import { AdapterUser } from 'next-auth/adapters';
 
 export const myAdapter: Adapter = {
-  // -- 1) USER methods --------------------------------------------
+  // createUser that is used during magic link sign up
   async createUser(user) {
     // Insert a user row in your `users` table
     const id = randomUUID();

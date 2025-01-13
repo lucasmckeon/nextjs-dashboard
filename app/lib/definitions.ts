@@ -11,6 +11,17 @@ export type User = {
   image: string;
 };
 
+export type SignInCredentials = {
+  email: string;
+  password: string;
+};
+
+export type SignUpCredentials = {
+  email: string;
+  name: string;
+  password: string;
+};
+
 export type Customer = {
   id: string;
   name: string;
