@@ -213,16 +213,6 @@ export async function magicLink(
     return 'Invalid form data.';
   }
   try {
-    const result = await sql`
-      SELECT * FROM users where email=${email} LIMIT 1
-    `;
-    if (!result.rows[0]) {
-      return `A user with the provided email doesn't exist. Magic link sign in requires an existing user.`;
-    }
-  } catch (error) {
-    return 'Magic Link Error: Database error when retrieving the user for email.';
-  }
-  try {
     await signIn('email', {
       redirect: true,
       redirectTo: '/dashboard',
@@ -230,10 +220,12 @@ export async function magicLink(
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      console.error(`Magic link auth error: ${error.message}`);
+      console.error(`actions.ts: Magic link auth error: ${error.message}`);
       switch (error.type) {
         case 'CredentialsSignin':
           return 'Invalid credentials.';
+        case 'AccessDenied':
+          return 'Magic Link sign up failed because there is not a user with the provided email';
         default:
           return 'Something went wrong.';
       }
