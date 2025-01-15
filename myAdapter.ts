@@ -33,9 +33,6 @@ export const myAdapter: Adapter = {
     `;
     if (!rows.length) {
       return null;
-      // await sql`
-      //   INSERT INTO users (name,email,)
-      // `;
     }
     return rows[0] as AdapterUser;
   },

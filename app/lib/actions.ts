@@ -9,6 +9,8 @@ import { AuthError } from 'next-auth';
 import { SignInCredentialsSchema, SignUpCredentialsSchema } from './schemas';
 import bcrypt from 'bcrypt';
 import { User } from './definitions';
+import * as crypto from 'crypto';
+import transporter from './auth/mailer';
 
 const FormSchema = z.object({
   id: z.string(),
@@ -225,11 +227,60 @@ export async function magicLink(
         case 'CredentialsSignin':
           return 'Invalid credentials.';
         case 'AccessDenied':
-          return 'Magic Link sign up failed because there is not a user with the provided email';
+          return 'Magic Link sign up failed because there is no user with the provided email';
         default:
           return 'Something went wrong.';
       }
     }
     throw error;
   }
+}
+
+export async function sendMagicCode(
+  prevState: string | undefined,
+  formData: FormData
+) {
+  const magicCode = crypto.randomInt(100000, 1000000).toString();
+  const email = formData.get('email');
+  if (typeof email !== 'string') return 'Must provide email';
+  try {
+    const { rows } = await sql`
+      SELECT * FROM users WHERE email=${email} LIMIT 1
+    `;
+    if (!rows.length) {
+      return 'Magic code sign up failed because there is no user with the provided email';
+    }
+  } catch (error) {
+    console.error(
+      'Error occurred during sendOTP when querying to see if a user with the provided email exists',
+      error
+    );
+    return 'Database error, please try again';
+  }
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  try {
+    const result = await sql`
+      INSERT INTO otp_codes (email,code,expires) VALUES (${email},${magicCode},${expires.toISOString()})
+    `;
+    if (!result.rowCount) return 'Insertion into otp codes failed';
+  } catch (error) {
+    return 'Database Error';
+  }
+  await sendMagicCodeEmail(email, magicCode, expires);
+  redirect(`/login/magic-code?email=${encodeURIComponent(email)}`);
+}
+
+async function sendMagicCodeEmail(email: string, code: string, expires: Date) {
+  await transporter.sendMail({
+    to: email,
+    from: process.env.EMAIL_FROM,
+    subject: `Trivia Battle Magic Code`,
+    text: `Sign in to Trivia Battle with the following magic code. If you did not request this, please ignore this email.`,
+    html: `
+      <p>Sign in to Trivia Battle with code</p>
+      <p>${code}</p>
+      <p>Code expires: ${expires.toLocaleString()}. Code only valid once.</p>
+      <p>If you did not request this, please ignore this email.</p>
+    `,
+  });
 }

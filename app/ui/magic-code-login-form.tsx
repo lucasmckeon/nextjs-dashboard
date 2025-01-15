@@ -9,13 +9,7 @@ import { ArrowRightIcon } from '@heroicons/react/20/solid';
 import { Button } from './button';
 import { useActionState } from 'react';
 import { authenticate } from '@/app/lib/actions';
-export default function LoginForm({
-  email,
-  passwordPlaceholder,
-}: {
-  email?: string;
-  passwordPlaceholder?: string;
-}) {
+export default function MagicCodeLoginForm({ email }: { email: string }) {
   const [errorMessage, formAction, isPending] = useActionState(
     authenticate,
     undefined
@@ -27,7 +21,7 @@ export default function LoginForm({
           Please log in to continue.
         </h1>
         <div className="w-full">
-          <div hidden={!!email}>
+          <div>
             <label
               className="mb-3 mt-5 block text-xs font-medium text-gray-900"
               htmlFor="email"
@@ -40,8 +34,8 @@ export default function LoginForm({
                 id="email"
                 type="email"
                 name="email"
-                placeholder="Enter your email address"
-                defaultValue={email}
+                value={email}
+                disabled
                 required
               />
               <AtSymbolIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-500 peer-focus:text-gray-900" />
@@ -60,7 +54,7 @@ export default function LoginForm({
                 id="password"
                 type="password"
                 name="password"
-                placeholder={passwordPlaceholder ?? 'Enter password'}
+                placeholder="Enter magic code"
                 required
                 minLength={6}
               />

@@ -4,6 +4,7 @@ import { db } from '@vercel/postgres';
 import { GET as first } from './route_01_09_initial_seed';
 import { GET as second } from './route_01_10_create_sessions_table';
 import { GET as third } from './route_01_11_001_create_verification_token_table';
+import { GET as fourth } from './route_01_14_create_otp_codes';
 const client = await db.connect();
 
 export async function GET() {
@@ -12,9 +13,10 @@ export async function GET() {
     await first();
     await second();
     await third();
+    await fourth();
     await client.sql`COMMIT`;
 
-    return Response.json({ message: 'Users table created successfully' });
+    return Response.json({ message: 'Database migration success' });
   } catch (error) {
     await client.sql`ROLLBACK`;
     return Response.json({ error }, { status: 500 });

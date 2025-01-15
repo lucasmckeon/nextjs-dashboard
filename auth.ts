@@ -51,10 +51,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
           const passwordsMatch = await bcrypt.compare(password, user.password);
-          if (passwordsMatch) return user;
+          if (passwordsMatch) {
+            return user;
+          }
+          // 2) If password check fails, try OTP
+          const { rows } = await sql`
+            SELECT * FROM otp_codes 
+            WHERE email=${email} 
+              AND code=${password}
+              AND expires > NOW()
+            LIMIT 1
+          `;
+          if (!rows.length) {
+            console.log('Credentials did not match user password or OTP');
+            return null;
+          }
+
+          // (Optional) Invalidate the OTP so it can’t be reused
+          await sql`
+            DELETE FROM otp_codes
+            WHERE email=${email} 
+              AND code=${password}
+          `;
+          return user;
         }
 
-        console.log('Invalid credentials format');
+        console.log('Invalid credentials format', parsedCredentials.error);
         return null;
       },
     }),
@@ -159,7 +181,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await myAdapter?.createSession?.({
           sessionToken: sessionToken,
           userId: params.token.sub,
-          //Any value but 30 causes an error
           expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
         });
         return sessionToken;
